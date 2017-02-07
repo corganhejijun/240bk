@@ -5,12 +5,162 @@
 <head>  
     <meta charset="utf-8">  
     <title>Anime</title>  
-    <meta name="description" content="v0.1.b57a2f7">  
+    <meta name="description" content="v0.1.92efc0a">  
     <link rel="stylesheet" type="text/css" href="{% static 'bootstrap.min.css' %}" /> 
     <script type="text/javascript" src="{% static 'jquery-2.2.4.min.js' %}"></script>
     <script type="text/javascript" src="{% static 'bootstrap.min.js' %}"></script>
+    <style type="text/css">
+    .imgSize{
+        width:100px;
+        border: 0px;
+    }
+    </style>
     <script type="text/javascript">
+    $(document).ready(function(){
+        $("input[id*='selectAid']").click(function(){
+            var list = document.getElementsByName("destination");
+            var aid = this.id.substr('selectAid'.length);
+            for (var i = 0; i < list.length; i++){
+                if ($(".checkbox", list[i].parentNode.parentNode)[0].checked){
+                    list[i].value = $(".mainTitle", $(this)[0].parentNode.parentNode)[0].textContent;
+                    var zh = $(".zhTitle", $(this)[0].parentNode.parentNode)[0].value;
+                    if (zh.length > 0)
+                        list[i].value += '_' + zh;
+                }
+            }
+        });
+        $("#checkboxAll").change(function(){
+            $("input[name*='fileCheck']").prop("checked", $("#checkboxAll")[0].checked);
+        });
+        $("#generateCommand").click(function(){
+            var result = '';
+            var list = document.getElementsByName("destination");
+            var number = 0;
+            for (var i = 0; i < list.length; i++){
+                var file = $(".fileName", list[i].parentNode.parentNode)[0].innerText;
+                var parent = $("#parentDirectory")[0].value;
+                if (parent.charAt(parent.length - 1) != '/'){
+                    parent += '/';
+                }
+                if ($(".checkbox", list[i].parentNode.parentNode)[0].checked){
+                    result += 'RNFR ' + file + '\n';
+                    result += 'RNTO ' + parent + list[i].value + '/' + file + '\n';
+                    number++;
+                }
+            }
+            $("#commandForFtp")[0].innerHTML = result;
+            $("#fileNumber")[0].innerHTML = number;
+        });
+    });
     </script>
 </head>
-<body>ok</body>
+<body>
+    <div class="container">
+    <div class="row">
+        <div class="col-md-3">
+            <a href="http://m-p.sakura.ne.jp/" target="_blank">
+                <img src="{% static "moontitle.jpg" %}">
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="http://bangumi.tv/" target="_blank">
+                <img src="{% static "bangumi.JPG" %}">
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="https://movie.douban.com/" target="_blank">
+                <img src="{% static "douban.jpg" %}">
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a href="http://cal.syoboi.jp/" target="_blank">
+                <img src="{% static "calendar.jpg" %}">
+            </a>
+        </div>
+    </div>
+    <form class="form" action="" method="post">
+        {% csrf_token %}
+        <div class="input-group">
+          <input type="text" class="form-control" name="searchTitle" placeholder="Search for...">
+          <span class="input-group-btn">
+            <button class="btn btn-default" type="submit">Search</button>
+            <a class="btn btn-success" href="{% url 'index' %}">返回</a>
+          </span>
+        </div><!-- /input-group -->
+    </form>
+    {% if searchText %}
+    <p>result for <font style="font-weight:700;">{{searchText}}</font></p>
+    {% endif %}
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>main title</th>
+                <th>ja title</th>
+                <th>zh title</th>
+                <th>aniDB link</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in animeList %}
+            <tr>
+                <td class="mainTitle">{{item.mainTitle}}</td>
+                <td>{{item.jaTitle}}</td>
+                <td ><input class="zhTitle" value="{% if item.zhTitle %}{{item.zhTitle}}{% endif %}"></td>
+                <td>
+                    <a href="http://anidb.net/perl-bin/animedb.pl?show=anime&aid={{item.aid}}" target="_blank">
+                        <img class="imgSize" src="{% static item.aid %}.jpg">
+                    </a>
+                </td>
+                <td>
+                    <input class="btn btn-default" type="submit" name="" value="选择" id="selectAid{{item.aid}}">
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="row">
+        <div class="col-md-1">
+            <input class="btn btn-success" id="generateCommand" type="submit" value="决定" data-toggle="modal" data-target="#commandModal">
+        </div>
+        <div class="col-md-5">
+            <div class="input-group">
+                <span class="input-group-addon" id="basic-addon1">父目录</span>
+                <input type="text" class="form-control" id="parentDirectory">
+            </div>
+        </div>
+    </div>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>
+                    <input type="checkbox" id="checkboxAll">#
+                </th>
+                <th>file name</th>
+                <th>destination</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in fileList %}
+                <tr>
+                    <td><input type="checkbox" name="fileCheck" class="checkbox"></td>
+                    <td class="fileName">{{ item }}</td>
+                    <td><input type="text" name="destination"></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <div id="commandModal" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Ftp 命令 文件数<span id="fileNumber"></span></h2>
+                </div>
+                <div class="modal-body">
+                    <textarea class="form-control" id="commandForFtp" rows="20"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
 </html>
