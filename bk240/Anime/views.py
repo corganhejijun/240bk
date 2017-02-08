@@ -1,6 +1,7 @@
 from django.shortcuts import render
 
 from Form.Index import Index
+from Form.Ftp import Ftp
 
 
 def index(request):
@@ -15,3 +16,12 @@ def index(request):
 def aidPage(request, aid):
     if request.method == 'GET':
         return render(request, 'html/' + aid + '.html')
+
+
+def ftp(request):
+    if request.method == 'GET':
+        form = Ftp()
+        return form.get(request)
+    if request.method == 'POST':
+        form = Ftp()
+        return form.post(request)

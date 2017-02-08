@@ -51,6 +51,45 @@
             $("#commandForFtp")[0].innerHTML = result;
             $("#fileNumber")[0].innerHTML = number;
         });
+        $("#checkboxAllTV").change(function(){
+            $("input[name*='checkTVFolder']").prop("checked", $("#checkboxAllTV")[0].checked);
+        });
+        $("#updateTV").click(function(){
+            $("#updateTV")[0].disabled = true;
+            $("#updateTVStatus")[0].innerHTML = '更新中，可能耗时较长请等候...';
+            $.getJSON("{% url 'index' %}" + 'Ftp?p=tree', function(data){
+                var result = '';
+                for (var i = 0; i < data.list.length; i++){
+                    result += '<tr>';
+                    result += '<td class="folderName">' + data.list[i].folder + '</td>';
+                    result += '<td>' + data.list[i].count + '</td>';
+                    result += '<td>'
+                        + '<input class="btn btn-success" id="tvFolder' + i
+                        + '" type="submit" value="查看" data-toggle="modal" data-target="#tvFileModal">'
+                        + '</td>';
+                    result += '</tr>';
+                }
+                $("#tableTVBody")[0].innerHTML = result;
+                $("#updateTVStatus")[0].innerHTML = '共' + data.list.length + '个文件夹';
+                $("#updateTV")[0].disabled = false;
+            });
+        });
+        $("table").on('click', "input[id*='tvFolder']", function(){
+            $("#tableTVFolderFile")[0].innerHTML = '';
+            $("#tvFileCount")[0].innerHTML = '';
+            var folder = $('.folderName', this.parentNode.parentNode)[0].textContent;
+            $.getJSON("{% url 'index' %}" + 'Ftp?tv=' + folder, function(data){
+                var result = '';
+                for (var i = 0; i < data.list.length; i++){
+                    result += '<tr>';
+                    result += '<td><input type="checkbox" name="checkTVFolder" class="checkbox"></td>';
+                    result += '<td>' + data.list[i] + '</td>';
+                    result += '</tr>';
+                }
+                $("#tableTVFolderFile")[0].innerHTML = result;
+                $("#tvFileCount")[0].innerHTML = data.list.length;
+            });
+        });
     });
     </script>
 </head>
@@ -112,43 +151,98 @@
                     </a>
                 </td>
                 <td>
-                    <input class="btn btn-default" type="submit" name="" value="选择" id="selectAid{{item.aid}}">
+                    <input class="btn btn-default" type="submit" value="选择" id="selectAid{{item.aid}}">
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    <div class="row">
-        <div class="col-md-1">
-            <input class="btn btn-success" id="generateCommand" type="submit" value="决定" data-toggle="modal" data-target="#commandModal">
-        </div>
-        <div class="col-md-5">
-            <div class="input-group">
-                <span class="input-group-addon" id="basic-addon1">父目录</span>
-                <input type="text" class="form-control" id="parentDirectory">
+    <p></p>
+    <ul class="nav nav-tabs" role="tablist">
+        <li role="presentation" class="active">
+            <a href="#tabIncoming" aria-controls="tabIncoming" role="tab" data-toggle="tab">Incoming</a>
+        </li>
+        <li role="presentation">
+            <a href="#tabTV" aria-controls="tabTV" role="tab" data-toggle="tab">TV</a>
+        </li>
+    </ul>
+    <div class="tab-content">
+        <div role="tabpanel" class="tab-pane active" id="tabIncoming">
+            <div class="row">
+                <div class="col-md-1">
+                    <input class="btn btn-success" id="generateCommand" type="submit" value="决定" data-toggle="modal" data-target="#commandModal">
+                </div>
+                <div class="col-md-5">
+                    <div class="input-group">
+                        <span class="input-group-addon" id="basic-addon1">父目录</span>
+                        <input type="text" class="form-control" id="parentDirectory">
+                    </div>
+                </div>
             </div>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>
+                            <input type="checkbox" id="checkboxAll" value="#">
+                        </th>
+                        <th>file name</th>
+                        <th>destination</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in fileList %}
+                        <tr>
+                            <td><input type="checkbox" name="fileCheck" class="checkbox"></td>
+                            <td class="fileName">{{ item }}</td>
+                            <td><input type="text" name="destination"></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div role="tabpanel" class="tab-pane" id="tabTV">
+            <div class="row">
+                <div class="col-md-1">
+                    <input class="btn btn-success" id="updateTV" type="submit" value="更新">
+                </div>
+                <div class="col-md-3">
+                    <span id="updateTVStatus"></span>
+                </div>
+            </div>
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>folder name</th>
+                        <th>file count</th>
+                        <th>operate</th>
+                    </tr>
+                </thead>
+                <tbody id="tableTVBody"></tbody>
+            </table>
         </div>
     </div>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>
-                    <input type="checkbox" id="checkboxAll">#
-                </th>
-                <th>file name</th>
-                <th>destination</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in fileList %}
-                <tr>
-                    <td><input type="checkbox" name="fileCheck" class="checkbox"></td>
-                    <td class="fileName">{{ item }}</td>
-                    <td><input type="text" name="destination"></td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    </div>
+    <div id="tvFileModal" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>总文件数<span id="tvFileCount"></span></h2>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="checkboxAllTV" value="#">
+                                </th>
+                                <th>file name</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableTVFolderFile"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
     <div id="commandModal" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-lg" role="document">
@@ -157,7 +251,7 @@
                     <h2>Ftp 命令 文件数<span id="fileNumber"></span></h2>
                 </div>
                 <div class="modal-body">
-                    <textarea class="form-control" id="commandForFtp" rows="20"></textarea>
+                    <textarea class="form-control" id="commandForFtp" rows="20" spellcheck="false"></textarea>
                 </div>
             </div>
         </div>

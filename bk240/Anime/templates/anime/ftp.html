@@ -1,0 +1,61 @@
+<!DOCTYPE html>  
+{% load bootstrap3  %} 
+{% load staticfiles %} 
+<html lang="en">  
+<head>  
+    <meta charset="utf-8">  
+    <title>Ftp manager</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'bootstrap.min.css' %}" /> 
+    <link rel="stylesheet" type="text/css" href="{% static 'bootstrap-treeview.min.css' %}">
+    <script type="text/javascript" src="{% static 'jquery-2.2.4.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'bootstrap.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'bootstrap-treeview.min.js' %}"></script>
+    <style type="text/css"></style>
+    <script type="text/javascript">
+        $(document).ready(function(){
+            $('#incoming').click(function(){
+                $.getJSON("{% url 'index' %}" + 'Ftp?p=income', function(data){
+                    $('#incomingText')[0].textContent = data.list;
+                    $('#incomingCount')[0].innerHTML = '文件数：' + data.length;
+                });
+            });
+            $('#file').click(function(){
+                $('#treeview')[0].innerHTML = '更新中，可能耗时较长请等候...';
+                $('#file')[0].disabled = true;
+                $.getJSON("{% url 'index' %}" + 'Ftp?p=tree', function(data){
+                    $('#fileTree').treeview({data: data.list});
+                    $('#fileTree').treeview('collapseAll', { silent: true });
+                    $('#treeview')[0].innerHTML = '共' + data.list.length + '个文件夹';
+                    $('#file')[0].disabled = false;
+                });
+            });
+        });
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h2>FTP 数据更新</h2>
+        <div class="row">
+            <div class="col-md-2">
+                <button class="btn btn-default" id="incoming">更新incoming</button>
+            </div>
+            <div class="col-md-4">
+                <span id="incomingCount"></span>
+            </div>
+        </div>
+        <p></p>
+        <textarea id="incomingText" class="form-control" rows="15" spellcheck="false"></textarea>
+        <p></p>
+        <div class="row">
+            <div class="col-md-2">
+                <button class="btn btn-default" id="file">更新目录</button>
+            </div>
+            <div class="col-md-4">
+                <span id="treeview"></span>
+            </div>
+        </div>
+        <p></p>
+        <div id="fileTree" class="treeview" id="fileTree"></div>
+    </div>
+</body>
+</html>
