@@ -1,50 +1,50 @@
 # -*- coding: utf-8 -*-
 from django import forms
 from django.shortcuts import render
+from django.http import JsonResponse
 from django.db.models import Q
-import datetime
 
 from ..models import Anime
+from django.conf import settings
+import ftplib
 
 
 class Index(forms.Form):
-    fileList = []
-    fileDate = None
+    TV_UNSORT = '/animesub/incoming/unsorted/'
 
     def getFileList(self):
-        if len(self.fileList) > 0:
-            if self.fileDate:
-                timeDiff = datetime.datetime.now() - self.fileDate
-                if timeDiff.total_seconds() < 3600 * 8:
-                    return
-        self.fileDate = datetime.datetime.now()
-        self.fileList = []
-        line = ' '
-        file = open('Anime/Data/ftp.txt')
-        while line:
-            line = file.readline()
-            if not line:
-                break
-            self.fileList.append(line)
-        file.close()
+        fileList = []
+        ftp = ftplib.FTP()
+        ftp.connect(settings.FTP_IP, settings.FTP_PORT, 30)
+        ftp.login(settings.FTP_USER_NAME, settings.FTP_PASSWORD)
+        print 'login'
+        try:
+            print 'ok'
+            ftp.cwd(self.TV_UNSORT)
+            ftpList = ftp.nlst()
+            for file in ftpList:
+                fileList.append(file)
+        except Exception, e:
+            print 'error' + str(e)
+        finally:
+            print 'quit ok'
+            ftp.quit()
+        return fileList
 
     def get(self, request):
-        self.getFileList()
-        return render(request, 'anime/index.html', {'fileList': self.fileList[:10]})
+        fileList = self.getFileList()
+        if 'search' in request.GET:
+            return self.search(request.GET['search'], fileList)
+        return render(request, 'anime/index.html', {'fileList': fileList[:10]})
 
-    def post(self, request):
-        self.getFileList()
-        if 'searchTitle' in request.POST:
-            text = request.POST['searchTitle']
-        if len(text) == 0:
-            return render(request, 'anime/index.html', {'fileList': self.fileList[:10]})
+    def search(self, text, fileList):
         words = text.replace('_', ' ').split()
         querySet = Anime.objects
         for word in words:
             querySet = querySet.filter(Q(mainTitle__contains=word)
                 | Q(jaTitle__contains=word) | Q(zhTitle__contains=word))
         myList = []
-        for file in self.fileList:
+        for file in fileList:
             found = True
             for word in words:
                 if word not in file.decode('utf-8'):
@@ -53,4 +53,11 @@ class Index(forms.Form):
             if found:
                 myList.append(file)
         myList.sort()
-        return render(request, 'anime/index.html', {'animeList': querySet[:20], 'fileList': myList, 'searchText': text})
+        aniList = []
+        for item in querySet:
+            aniList.append({
+                'aid': item.aid,
+                'mainTitle': item.mainTitle,
+                'jaTitle': item.jaTitle,
+                'zhTitle': item.zhTitle})
+        return JsonResponse({'fileList': myList, 'aniDBList': aniList})

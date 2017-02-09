@@ -17,6 +17,17 @@
     </style>
     <script type="text/javascript">
     $(document).ready(function(){
+        function getSearchFileList(data){
+            var result = '';
+            for (var i = 0; i < data.fileList.length; i++){
+                result += '<tr>';
+                result += '<td><input type="checkbox" name="fileCheck" class="checkbox"></td>';
+                result += '<td class="fileName">' + data.fileList[i] + '</td>';
+                result += '<td><input type="text" name="destination"></td>';
+                result += '</tr>';
+            }
+            $("#searchFileList")[0].innerHTML = result;
+        }
         $("input[id*='selectAid']").click(function(){
             var list = document.getElementsByName("destination");
             var aid = this.id.substr('selectAid'.length);
@@ -56,7 +67,7 @@
         });
         $("#updateTV").click(function(){
             $("#updateTV")[0].disabled = true;
-            $("#updateTVStatus")[0].innerHTML = '更新中，可能耗时较长请等候...';
+            $("#updateTVStatus")[0].innerHTML = '更新中，可能耗时较长,请等候...';
             $.getJSON("{% url 'index' %}" + 'Ftp?p=tree', function(data){
                 var result = '';
                 for (var i = 0; i < data.list.length; i++){
@@ -76,19 +87,78 @@
         });
         $("table").on('click', "input[id*='tvFolder']", function(){
             $("#tableTVFolderFile")[0].innerHTML = '';
-            $("#tvFileCount")[0].innerHTML = '';
+            $("#tvFileCount")[0].innerHTML = '查询中...';
+            $("#tvCommand")[0].innerHTML = '';
+            $("#completeSubDir")[0].value = '';
+            $("#checkboxAllTV")[0].checked = false;
             var folder = $('.folderName', this.parentNode.parentNode)[0].textContent;
             $.getJSON("{% url 'index' %}" + 'Ftp?tv=' + folder, function(data){
                 var result = '';
                 for (var i = 0; i < data.list.length; i++){
                     result += '<tr>';
                     result += '<td><input type="checkbox" name="checkTVFolder" class="checkbox"></td>';
-                    result += '<td>' + data.list[i] + '</td>';
+                    result += '<td class="fileName">' + data.list[i] + '</td>';
                     result += '</tr>';
+                }
+                if (data.list.length > 0){
+                    $("#completeSubDir")[0].value = folder + data.list[0].substring(0, data.list[0].indexOf(']') + 1);
                 }
                 $("#tableTVFolderFile")[0].innerHTML = result;
                 $("#tvFileCount")[0].innerHTML = data.list.length;
             });
+        });
+        $("#buttonSearch").click(function(){
+            var text = $("#searchTitle")[0].value;
+            if (text.length == 0){
+                return;
+            }
+            $("#buttonSearch")[0].disabled = true;
+            $("#buttonSearch")[0].innerHTML = 'wait';
+            $.getJSON("{% url 'index' %}" + '?search=' + text, function(data){
+                var result = '';
+                $("#searchResult")[0].innerHTML = 'result for <font style="font-weight:700;">' + text + '</font>';
+                for (var i = 0; i < data.aniDBList.length; i++){
+                    result += '<tr>';
+                    result += '<td class="mainTitle" id="mainTitle">' + data.aniDBList[i].mainTitle + '</td>';
+                    result += '<td id="jaTitle">' + data.aniDBList[i].jaTitle + '</td>';
+                    result += '<td ><input id="zhTitle" class="zhTitle" value="';
+                    if (data.aniDBList[i].zhTitle && data.aniDBList[i].zhTitle.length > 0){
+                        result += data.aniDBList[i].zhTitle;
+                    }
+                    result += '"></td>';
+                    result += '<td><a id="aniDBLink" href="http://anidb.net/perl-bin/animedb.pl?show=anime&aid='
+                                + data.aniDBList[i].aid + '" target="_blank">';
+                    result +=       '<img class="imgSize" src=" {% static "" %}' + data.aniDBList[i].aid + '.jpg">';
+                    result +=   '</a>';
+                    result += '</td>';
+                    result += '<td>';
+                    result +=   '<input class="btn btn-default" type="submit" value="选择" id="selectAid'
+                                + data.aniDBList[i].aid + '">';
+                    result += '</td>';
+                    result += '</tr>';
+                }
+                $("#aniDBSearch")[0].innerHTML = result;
+                getSearchFileList(data);
+                $("#buttonSearch")[0].disabled = false;
+                $("#buttonSearch")[0].innerHTML = 'Search';
+            })
+        });
+        $("#Complete").click(function(){
+            var number = 0;
+            var list = document.getElementsByName("checkTVFolder");
+            var parent = $("#completeDir")[0].value + $("#completeSubDir")[0].value;
+            var result = 'MKD ' + parent + '\n';
+            for (var i = 0; i < list.length; i++){
+                if ($(".checkbox", list[i].parentNode.parentNode)[0].checked){
+                    var file = $(".fileName", list[i].parentNode.parentNode)[0].innerText;
+                    result += 'RNFR ' + file + '\n';
+                    result += 'RNTO ' + parent + '/' + file + '\n';
+                    number++;
+                }
+            }
+            $("#tvCommand")[0].innerHTML = '<div>共有' + number + '个文件</div>'
+                +'<textarea class="form-control" rows="20" spellcheck="false" wrap="off">'
+                + result + '</textarea>';
         });
     });
     </script>
@@ -117,19 +187,14 @@
             </a>
         </div>
     </div>
-    <form class="form" action="" method="post">
-        {% csrf_token %}
-        <div class="input-group">
-          <input type="text" class="form-control" name="searchTitle" placeholder="Search for...">
-          <span class="input-group-btn">
-            <button class="btn btn-default" type="submit">Search</button>
-            <a class="btn btn-success" href="{% url 'index' %}">返回</a>
-          </span>
-        </div><!-- /input-group -->
-    </form>
-    {% if searchText %}
-    <p>result for <font style="font-weight:700;">{{searchText}}</font></p>
-    {% endif %}
+    <div class="input-group">
+      <input type="text" class="form-control" name="searchTitle" id="searchTitle" placeholder="Search for...">
+      <span class="input-group-btn">
+        <button class="btn btn-success" type="submit" id="buttonSearch">Search</button>
+        <a class="btn btn-default" href="{% url 'index' %}">返回</a>
+      </span>
+    </div>
+    <p id="searchResult"></p>
     <table class="table table-striped">
         <thead>
             <tr>
@@ -139,23 +204,7 @@
                 <th>aniDB link</th>
             </tr>
         </thead>
-        <tbody>
-            {% for item in animeList %}
-            <tr>
-                <td class="mainTitle">{{item.mainTitle}}</td>
-                <td>{{item.jaTitle}}</td>
-                <td ><input class="zhTitle" value="{% if item.zhTitle %}{{item.zhTitle}}{% endif %}"></td>
-                <td>
-                    <a href="http://anidb.net/perl-bin/animedb.pl?show=anime&aid={{item.aid}}" target="_blank">
-                        <img class="imgSize" src="{% static item.aid %}.jpg">
-                    </a>
-                </td>
-                <td>
-                    <input class="btn btn-default" type="submit" value="选择" id="selectAid{{item.aid}}">
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
+        <tbody id="aniDBSearch"></tbody>
     </table>
     <p></p>
     <ul class="nav nav-tabs" role="tablist">
@@ -170,7 +219,7 @@
         <div role="tabpanel" class="tab-pane active" id="tabIncoming">
             <div class="row">
                 <div class="col-md-1">
-                    <input class="btn btn-success" id="generateCommand" type="submit" value="决定" data-toggle="modal" data-target="#commandModal">
+                    <input class="btn btn-primary" id="generateCommand" type="submit" value="决定" data-toggle="modal" data-target="#commandModal">
                 </div>
                 <div class="col-md-5">
                     <div class="input-group">
@@ -189,13 +238,13 @@
                         <th>destination</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="searchFileList">
                     {% for item in fileList %}
-                        <tr>
-                            <td><input type="checkbox" name="fileCheck" class="checkbox"></td>
-                            <td class="fileName">{{ item }}</td>
-                            <td><input type="text" name="destination"></td>
-                        </tr>
+                    <tr>
+                        <td><input type="checkbox" name="fileCheck" class="checkbox"></td>
+                        <td class="fileName">{{ item }}</td>
+                        <td><input type="text" name="destination"></td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -226,9 +275,23 @@
         <div class="modal-dialog modal-lg" role="document">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>总文件数<span id="tvFileCount"></span></h2>
+                    <h2>总文件数<span id="tvFileCount">查询中...</span></h2>
+                </div>
+                <div class="row">
+                    <div class="col-md-1">
+                        <button id="Complete" class="btn btn-primary">完结</button>
+                    </div>
+                    <div class="col-md-3">
+                        <span class="input-group-addon" id="basic-addon1">父目录</span>
+                        <input type="text" class="form-control" id="completeDir" value="/animesub/completed/">
+                    </div>
+                    <div class="col-md-5">
+                        <span class="input-group-addon" id="basic-addon1">子目录</span>
+                        <input type="text" class="form-control" id="completeSubDir">
+                    </div>
                 </div>
                 <div class="modal-body">
+                    <div id="tvCommand"></div>
                     <table class="table table-striped">
                         <thead>
                             <tr>
@@ -251,7 +314,7 @@
                     <h2>Ftp 命令 文件数<span id="fileNumber"></span></h2>
                 </div>
                 <div class="modal-body">
-                    <textarea class="form-control" id="commandForFtp" rows="20" spellcheck="false"></textarea>
+                    <textarea class="form-control" id="commandForFtp" rows="20" spellcheck="false" wrap="off"></textarea>
                 </div>
             </div>
         </div>

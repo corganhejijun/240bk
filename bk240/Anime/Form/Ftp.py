@@ -49,6 +49,7 @@ class Ftp(forms.Form):
         finally:
             print 'quit ok'
             ftp.quit()
+        myList.sort()
         return JsonResponse({'list': myList})
 
     def getTVTree(self):
@@ -57,15 +58,11 @@ class Ftp(forms.Form):
         ftp.connect(settings.FTP_IP, settings.FTP_PORT, 30)
         ftp.login(settings.FTP_USER_NAME, settings.FTP_PASSWORD)
         print 'login'
-        i = 0
         try:
             print 'ok'
             ftp.cwd('/animesub/TV/')
             dirList = ftp.nlst()
             for name in dirList:
-                i += 1
-                if i > 3:
-                    break
                 ftp.cwd('/animesub/TV/' + name)
                 try:
                     subList = ftp.nlst()
@@ -84,6 +81,7 @@ class Ftp(forms.Form):
         finally:
             print 'quit ok'
             ftp.quit()
+        tvList = sorted(tvList, key=lambda x: x['folder'].lower())
         if os.path.isfile(self.FTP_TV_TREE_FILE):
             os.remove(self.FTP_TV_TREE_FILE)
         with open(self.FTP_TV_TREE_FILE, 'wb') as file:
