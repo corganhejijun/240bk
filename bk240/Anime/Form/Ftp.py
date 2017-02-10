@@ -16,54 +16,73 @@ class Ftp(forms.Form):
     def get(self, request):
         if 'p' in request.GET:
             param = request.GET['p']
-            return self.getJson(param)
+            tp = request.GET.get('type')
+            return self.getJson(param, tp)
         if 'tv' in request.GET:
             param = request.GET['tv']
-            return self.getTVFolder(param)
+            tp = request.GET.get('type')
+            return self.getTVFolder(param, tp)
         return render(request, 'anime/ftp.html')
 
     def post(self, request):
         return render(request, 'anime/ftp.html')
 
-    def getJson(self, param):
+    def getJson(self, param, tp):
         if param == 'income':
             return self.getIncomeFile()
         if param == 'tree':
-            return self.getTVTree()
+            return self.getTVTree(tp)
+        if param == 'quickTree':
+            return JsonResponse({'list': settings.Ftp_TvTree})
 
-    def getTVFolder(self, param):
+    def getParentFolder(self, tp):
+        parentFolder = '/animesub/TV/'
+        if tp == 'bd':
+            parentFolder = '/animesub/BDRip/'
+        if tp == 'ova':
+            parentFolder = '/animesub/OVA/'
+        if tp == 'movie':
+            parentFolder = '/animesub/Movie/'
+        return parentFolder
+
+    def getTVFolder(self, param, tp):
         myList = []
-        ftp = ftplib.FTP()
-        ftp.connect(settings.FTP_IP, settings.FTP_PORT, 30)
-        ftp.login(settings.FTP_USER_NAME, settings.FTP_PASSWORD)
-        print 'login'
+        error = ''
         try:
-            print 'ok'
-            path = '/animesub/TV/' + param.encode('utf-8')
+            ftp = ftplib.FTP()
+            ftp.connect(settings.FTP_IP, settings.FTP_PORT, 30)
+            ftp.login(settings.FTP_USER_NAME, settings.FTP_PASSWORD)
+            parentFolder = self.getParentFolder(tp)
+            print 'login ok'
+            path = parentFolder + param.encode('utf-8')
             ftp.cwd(path)
             fileList = ftp.nlst()
             for file in fileList:
                 myList.append(file)
         except Exception, e:
             print str(e)
+            error = str(e)
         finally:
-            print 'quit ok'
             ftp.quit()
+            print 'quit ok'
+        if (len(error) > 1):
+            return JsonResponse({'error': error})
         myList.sort()
         return JsonResponse({'list': myList})
 
-    def getTVTree(self):
+    def getTVTree(self, tp):
         tvList = []
-        ftp = ftplib.FTP()
-        ftp.connect(settings.FTP_IP, settings.FTP_PORT, 30)
-        ftp.login(settings.FTP_USER_NAME, settings.FTP_PASSWORD)
-        print 'login'
+        error = ''
         try:
-            print 'ok'
-            ftp.cwd('/animesub/TV/')
+            ftp = ftplib.FTP()
+            ftp.connect(settings.FTP_IP, settings.FTP_PORT, 30)
+            ftp.login(settings.FTP_USER_NAME, settings.FTP_PASSWORD)
+            parentFolder = self.getParentFolder(tp)
+            print 'login ok'
+            ftp.cwd(parentFolder)
             dirList = ftp.nlst()
             for name in dirList:
-                ftp.cwd('/animesub/TV/' + name)
+                ftp.cwd(parentFolder + name)
                 try:
                     subList = ftp.nlst()
                     dirString = []
@@ -74,13 +93,14 @@ class Ftp(forms.Form):
                     print 'nlst failed: ' + str(resp)
                     if '550 No files found' in str(resp):
                         tvList.append({'folder': name, 'file': []})
-                except Exception, e:
-                    print str(e)
         except Exception, e:
             print str(e)
+            error = str(e)
         finally:
             print 'quit ok'
             ftp.quit()
+        if (len(error) > 1):
+            return JsonResponse({'error': error})
         tvList = sorted(tvList, key=lambda x: x['folder'].lower())
         if os.path.isfile(self.FTP_TV_TREE_FILE):
             os.remove(self.FTP_TV_TREE_FILE)
@@ -89,25 +109,30 @@ class Ftp(forms.Form):
         myList = []
         for folder in tvList:
             myList.append({'folder': folder['folder'], 'count': len(folder['file'])})
+        settings.Ftp_TvTree = myList
         return JsonResponse({'list': myList})
 
     def getIncomeFile(self):
         ftpList = ''
         fileCount = 0
-
-        ftp = ftplib.FTP()
-        ftp.connect(settings.FTP_IP, settings.FTP_PORT, 30)
-        ftp.login(settings.FTP_USER_NAME, settings.FTP_PASSWORD)
-        print 'login'
+        error = ''
         try:
-            print 'ok'
+            ftp = ftplib.FTP()
+            ftp.connect(settings.FTP_IP, settings.FTP_PORT, 30)
+            ftp.login(settings.FTP_USER_NAME, settings.FTP_PASSWORD)
+            print 'login ok'
             ftp.cwd('/animesub/incoming/unsorted/')
             dirList = ftp.nlst()
             fileCount = len(dirList)
             for name in dirList:
                 ftpList += name + '\n'
+        except Exception, e:
+            print str(e)
+            error = str(e)
         finally:
             ftp.quit()
+        if (len(error) > 1):
+            return JsonResponse({'error': error})
 
         if (len(ftpList) > 0):
             if os.path.isfile(self.FTP_LIST_FILE):

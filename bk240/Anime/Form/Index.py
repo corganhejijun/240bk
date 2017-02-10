@@ -14,18 +14,17 @@ class Index(forms.Form):
 
     def getFileList(self):
         fileList = []
-        ftp = ftplib.FTP()
-        ftp.connect(settings.FTP_IP, settings.FTP_PORT, 30)
-        ftp.login(settings.FTP_USER_NAME, settings.FTP_PASSWORD)
-        print 'login'
         try:
-            print 'ok'
+            ftp = ftplib.FTP()
+            ftp.connect(settings.FTP_IP, settings.FTP_PORT, 30)
+            ftp.login(settings.FTP_USER_NAME, settings.FTP_PASSWORD)
+            print 'login ok'
             ftp.cwd(self.TV_UNSORT)
             ftpList = ftp.nlst()
             for file in ftpList:
                 fileList.append(file)
         except Exception, e:
-            print 'error' + str(e)
+            print str(e)
         finally:
             print 'quit ok'
             ftp.quit()

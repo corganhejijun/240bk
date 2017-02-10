@@ -63,25 +63,72 @@
             $("#fileNumber")[0].innerHTML = number;
         });
         $("#checkboxAllTV").change(function(){
-            $("input[name*='checkTVFolder']").prop("checked", $("#checkboxAllTV")[0].checked);
+            var begin = parseInt($("#beginIdx")[0].value);
+            var end = parseInt($("#endIdx")[0].value);
+            var step = parseInt($("#idxStep")[0].value);
+            var counter = step;
+            var checkList = $("input[name*='checkTVFolder']");
+            if (!$('#checkboxAllTV')[0].checked){
+                checkList.prop("checked", $("#checkboxAllTV")[0].checked);
+                return;
+            }
+            if (isNaN(begin) || isNaN(end) || isNaN(step)){
+                checkList.prop("checked", $("#checkboxAllTV")[0].checked);
+            }
+            for (var i = begin-1; i < checkList.length && i+1 <= end; i++){
+                counter++;
+                if (counter <= step && step > 0){
+                    continue;
+                }
+                counter = 0;
+                var number = parseInt($('.checkTVNumber', checkList[i].parentNode.parentNode)[0].textContent);
+                if (number == i+1){
+                    checkList[i].checked = true;
+                }
+            }
         });
+        function updateTvTree(data){
+            if ('error' in data){
+                $("#updateTVStatus")[0].innerHTML = '数据获取失败';
+                return;
+            }
+            var result = '';
+            for (var i = 0; i < data.list.length; i++){
+                result += '<tr>';
+                result += '<td class="folderName">' + data.list[i].folder + '</td>';
+                result += '<td>' + data.list[i].count + '</td>';
+                result += '<td>'
+                    + '<input class="btn btn-success" id="tvFolder' + i
+                    + '" type="submit" value="查看" data-toggle="modal" data-target="#tvFileModal">'
+                    + '</td>';
+                result += '</tr>';
+            }
+            $("#tableTVBody")[0].innerHTML = result;
+            $("#updateTVStatus")[0].innerHTML = '共' + data.list.length + '个文件夹';
+        }
+        $("#quickUpdateTV").click(function(){
+            $.getJSON("{% url 'index' %}" + 'Ftp?p=quickTree', function(data){
+                updateTvTree(data);
+            });
+        });
+        function getType(){
+            var type = 'tv';
+            if ($("#folderTypeBD")[0].checked){
+                type = 'bd';
+            }
+            if ($("#folderTypeOVA")[0].checked){
+                type = 'ova';
+            }
+            if ($("#folderTypeMovie")[0].checked){
+                type = 'movie';
+            }
+            return type;
+        }
         $("#updateTV").click(function(){
             $("#updateTV")[0].disabled = true;
             $("#updateTVStatus")[0].innerHTML = '更新中，可能耗时较长,请等候...';
-            $.getJSON("{% url 'index' %}" + 'Ftp?p=tree', function(data){
-                var result = '';
-                for (var i = 0; i < data.list.length; i++){
-                    result += '<tr>';
-                    result += '<td class="folderName">' + data.list[i].folder + '</td>';
-                    result += '<td>' + data.list[i].count + '</td>';
-                    result += '<td>'
-                        + '<input class="btn btn-success" id="tvFolder' + i
-                        + '" type="submit" value="查看" data-toggle="modal" data-target="#tvFileModal">'
-                        + '</td>';
-                    result += '</tr>';
-                }
-                $("#tableTVBody")[0].innerHTML = result;
-                $("#updateTVStatus")[0].innerHTML = '共' + data.list.length + '个文件夹';
+            $.getJSON("{% url 'index' %}" + 'Ftp?p=tree&type=' + getType(), function(data){
+                updateTvTree(data);
                 $("#updateTV")[0].disabled = false;
             });
         });
@@ -90,18 +137,25 @@
             $("#tvFileCount")[0].innerHTML = '查询中...';
             $("#tvCommand")[0].innerHTML = '';
             $("#completeSubDir")[0].value = '';
+            $("#completeGroup")[0].value = '';
             $("#checkboxAllTV")[0].checked = false;
             var folder = $('.folderName', this.parentNode.parentNode)[0].textContent;
-            $.getJSON("{% url 'index' %}" + 'Ftp?tv=' + folder, function(data){
+            $.getJSON("{% url 'index' %}" + 'Ftp?type=' + getType() + '&tv=' + folder, function(data){
+                if ('error' in data){
+                    $("#tvFileCount")[0].innerHTML = '数据获取失败';
+                    return;
+                }
                 var result = '';
                 for (var i = 0; i < data.list.length; i++){
                     result += '<tr>';
                     result += '<td><input type="checkbox" name="checkTVFolder" class="checkbox"></td>';
+                    result += '<td class="checkTVNumber">' + (i+1) + '</td>';
                     result += '<td class="fileName">' + data.list[i] + '</td>';
                     result += '</tr>';
                 }
+                $("#completeSubDir")[0].value = folder;
                 if (data.list.length > 0){
-                    $("#completeSubDir")[0].value = folder + data.list[0].substring(0, data.list[0].indexOf(']') + 1);
+                     $("#completeGroup")[0].value = data.list[0].substring(0, data.list[0].indexOf(']') + 1);
                 }
                 $("#tableTVFolderFile")[0].innerHTML = result;
                 $("#tvFileCount")[0].innerHTML = data.list.length;
@@ -115,6 +169,12 @@
             $("#buttonSearch")[0].disabled = true;
             $("#buttonSearch")[0].innerHTML = 'wait';
             $.getJSON("{% url 'index' %}" + '?search=' + text, function(data){
+                if ('error' in data){
+                    $("#aniDBSearch")[0].innerHTML = '数据获取失败';
+                    $("#buttonSearch")[0].disabled = false;
+                    $("#buttonSearch")[0].innerHTML = 'Search';
+                    return;
+                }
                 var result = '';
                 $("#searchResult")[0].innerHTML = 'result for <font style="font-weight:700;">' + text + '</font>';
                 for (var i = 0; i < data.aniDBList.length; i++){
@@ -143,16 +203,42 @@
                 $("#buttonSearch")[0].innerHTML = 'Search';
             })
         });
+        function getGroupName(list){
+            for (var i = 0; i < list.length; i++){
+                if (list[i].checked){
+                    var text = $(".fileName", list[i].parentNode.parentNode)[0].innerText;
+                    return text.substring(0, text.indexOf(']') + 1);
+                }
+            }
+        };
+        function getDate(){
+            var date = new Date();
+            result = '';
+            if (date.getMonth() + 1 < 10){
+                result += '0';
+            }
+            result += date.getMonth() + 1;
+            result += '.';
+            if (date.getDate() < 10){
+                result += '0'
+            }
+            result += date.getDate();
+            return result;
+        }
         $("#Complete").click(function(){
             var number = 0;
             var list = document.getElementsByName("checkTVFolder");
-            var parent = $("#completeDir")[0].value + $("#completeSubDir")[0].value;
+            var group = getGroupName(list);
+            $("#completeGroup")[0].value = group;
+            var parent = $("#completeDir")[0].value + '[' + getDate() + ']' + $("#completeSubDir")[0].value + $("#completeGroup")[0].value;
             var result = 'MKD ' + parent + '\n';
+            $("#checkboxAllTV")[0].checked = false;
             for (var i = 0; i < list.length; i++){
-                if ($(".checkbox", list[i].parentNode.parentNode)[0].checked){
+                if (list[i].checked){
                     var file = $(".fileName", list[i].parentNode.parentNode)[0].innerText;
                     result += 'RNFR ' + file + '\n';
                     result += 'RNTO ' + parent + '/' + file + '\n';
+                    list[i].checked = false;
                     number++;
                 }
             }
@@ -195,7 +281,7 @@
       </span>
     </div>
     <p id="searchResult"></p>
-    <table class="table table-striped">
+    <table class="table table-striped table-hover">
         <thead>
             <tr>
                 <th>main title</th>
@@ -228,7 +314,7 @@
                     </div>
                 </div>
             </div>
-            <table class="table table-striped">
+            <table class="table table-striped table-hover">
                 <thead>
                     <tr>
                         <th>
@@ -254,11 +340,28 @@
                 <div class="col-md-1">
                     <input class="btn btn-success" id="updateTV" type="submit" value="更新">
                 </div>
+                <div class="col-md-2">
+                    <input class="btn btn-primary" id="quickUpdateTV" type="submit" value="快速更新">
+                </div>
                 <div class="col-md-3">
                     <span id="updateTVStatus"></span>
                 </div>
+                <div class="col-md-4">
+                    <label class="radio-inline">
+                        <input type="radio" name="folderType" id="folderTypeTV" value="TVrip" checked>TVrip
+                    </label>
+                    <label class="radio-inline">
+                        <input type="radio" name="folderType" id="folderTypeBD" value="BDrip">BDrip
+                    </label>
+                    <label class="radio-inline">
+                        <input type="radio" name="folderType" id="folderTypeOVA" value="OVA">OVA
+                    </label>
+                    <label class="radio-inline">
+                        <input type="radio" name="folderType" id="folderTypeMovie" value="Movie">Movie
+                    </label>
+                </div>
             </div>
-            <table class="table table-striped">
+            <table class="table table-striped table-hover">
                 <thead>
                     <tr>
                         <th>folder name</th>
@@ -285,19 +388,39 @@
                         <span class="input-group-addon" id="basic-addon1">父目录</span>
                         <input type="text" class="form-control" id="completeDir" value="/animesub/completed/">
                     </div>
-                    <div class="col-md-5">
+                    <div class="col-md-4">
                         <span class="input-group-addon" id="basic-addon1">子目录</span>
                         <input type="text" class="form-control" id="completeSubDir">
+                    </div>
+                    <div class="col-md-3">
+                        <span class="input-group-addon" id="basic-addon1">字幕组</span>
+                        <input type="text" class="form-control" id="completeGroup">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-1"></div>
+                    <div class="col-md-3">
+                        <span class="input-group-addon">多选起始编号</span>
+                        <input type="text" class="form-control" id="beginIdx" value="1">
+                    </div>
+                    <div class="col-md-3">
+                        <span class="input-group-addon">间隔</span>
+                        <input type="text" class="form-control" id="idxStep" value="0">
+                    </div>
+                    <div class="col-md-3">
+                        <span class="input-group-addon">结束编号</span>
+                        <input type="text" class="form-control" id="endIdx" value="13">
                     </div>
                 </div>
                 <div class="modal-body">
                     <div id="tvCommand"></div>
-                    <table class="table table-striped">
+                    <table class="table table-striped table-hover">
                         <thead>
                             <tr>
                                 <th>
                                     <input type="checkbox" id="checkboxAllTV" value="#">
                                 </th>
+                                <th>number</th>
                                 <th>file name</th>
                             </tr>
                         </thead>
