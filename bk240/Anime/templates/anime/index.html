@@ -28,7 +28,7 @@
             }
             $("#searchFileList")[0].innerHTML = result;
         }
-        $("input[id*='selectAid']").click(function(){
+        $("table").on('click', "input[id*='selectAid']", function(){
             var list = document.getElementsByName("destination");
             var aid = this.id.substr('selectAid'.length);
             for (var i = 0; i < list.length; i++){
@@ -230,7 +230,17 @@
             var list = document.getElementsByName("checkTVFolder");
             var group = getGroupName(list);
             $("#completeGroup")[0].value = group;
-            var parent = $("#completeDir")[0].value + '[' + getDate() + ']' + $("#completeSubDir")[0].value + $("#completeGroup")[0].value;
+            var type = getType();
+            if (type != 'tv'){
+                if (type == 'bd'){
+                    type += 'rip';
+                }
+                type = '【' + type.toUpperCase() + '】';
+            }
+            else{
+                type = '';
+            }
+            var parent = $("#completeDir")[0].value + '[' + getDate() + ']' + type + $("#completeSubDir")[0].value + $("#completeGroup")[0].value;
             var result = 'MKD ' + parent + '\n';
             $("#checkboxAllTV")[0].checked = false;
             for (var i = 0; i < list.length; i++){
