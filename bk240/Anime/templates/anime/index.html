@@ -17,10 +17,27 @@
     </style>
     <script type="text/javascript">
     $(document).ready(function(){
+        function getColor(fileName){
+            var suffix = fileName.substring(fileName.lastIndexOf('.') + 1);
+            if (suffix == 'mp4'){
+                return 'danger';
+            }
+            if (suffix == 'ass'){
+                return 'warning';
+            }
+            if (suffix == 'rar' || suffix == 'zip'){
+                return 'info';
+            }
+            if (suffix == 'srt'){
+                return 'success'
+            }
+            return ''
+        }
         function getSearchFileList(data){
             var result = '';
+            var color = '';
             for (var i = 0; i < data.fileList.length; i++){
-                result += '<tr>';
+                result += '<tr class="clickable ' + getColor(data.fileList[i]) + '"">';
                 result += '<td><input type="checkbox" name="fileCheck" class="checkbox"></td>';
                 result += '<td class="fileName">' + data.fileList[i] + '</td>';
                 result += '<td><input type="text" name="destination"></td>';
@@ -46,21 +63,36 @@
         $("#generateCommand").click(function(){
             var result = '';
             var list = document.getElementsByName("destination");
+            var parent = $("#parentDirectory")[0].value;
             var number = 0;
+            if (parent.charAt(parent.length - 1) != '/'){
+                parent += '/';
+            }
             for (var i = 0; i < list.length; i++){
                 var file = $(".fileName", list[i].parentNode.parentNode)[0].innerText;
-                var parent = $("#parentDirectory")[0].value;
-                if (parent.charAt(parent.length - 1) != '/'){
-                    parent += '/';
-                }
                 if ($(".checkbox", list[i].parentNode.parentNode)[0].checked){
                     result += 'RNFR ' + file + '\n';
-                    result += 'RNTO ' + parent + list[i].value + '/' + file + '\n';
+                    result += 'RNTO ' + parent;
+                    if (list[i].value.length > 0)
+                        result += list[i].value + '/' ;
+                    result += file + '\n';
                     number++;
                 }
             }
-            $("#commandForFtp")[0].innerHTML = result;
+            $("#commandForFtp")[0].value = result;
             $("#fileNumber")[0].innerHTML = number;
+        });
+        $("#ftpFolderCreate").click(function(){
+            if ($("#ftpFolderCreate")[0].checked){
+                var parent = $("#parentDirectory")[0].value;
+                var dest = document.getElementsByName("destination");
+                for (var i = 0; i < dest.length; i++){
+                    if ($(".checkbox", dest[i].parentNode.parentNode)[0].checked){
+                        $("#commandForFtp")[0].value = 'MKD ' + parent + dest[i].value + '/\n'+ $("#commandForFtp")[0].value;
+                        return;
+                    }
+                }
+            }
         });
         $("#checkboxAllTV").change(function(){
             var begin = parseInt($("#beginIdx")[0].value);
@@ -132,6 +164,9 @@
                 $("#updateTV")[0].disabled = false;
             });
         });
+        $("table").on('click', ".clickable", function(){
+            $('.checkbox', this)[0].checked = !$('.checkbox', this)[0].checked;
+        })
         $("table").on('click', "input[id*='tvFolder']", function(){
             $("#tableTVFolderFile")[0].innerHTML = '';
             $("#tvFileCount")[0].innerHTML = '查询中...';
@@ -147,7 +182,7 @@
                 }
                 var result = '';
                 for (var i = 0; i < data.list.length; i++){
-                    result += '<tr>';
+                    result += '<tr class="clickable ' + getColor(data.list[i]) + '"">';
                     result += '<td><input type="checkbox" name="checkTVFolder" class="checkbox"></td>';
                     result += '<td class="checkTVNumber">' + (i+1) + '</td>';
                     result += '<td class="fileName">' + data.list[i] + '</td>';
@@ -320,7 +355,7 @@
                 <div class="col-md-5">
                     <div class="input-group">
                         <span class="input-group-addon" id="basic-addon1">父目录</span>
-                        <input type="text" class="form-control" id="parentDirectory">
+                        <input type="text" class="form-control" id="parentDirectory" value="/animesub/TV/">
                     </div>
                 </div>
             </div>
@@ -336,7 +371,7 @@
                 </thead>
                 <tbody id="searchFileList">
                     {% for item in fileList %}
-                    <tr>
+                    <tr class="clickable">
                         <td><input type="checkbox" name="fileCheck" class="checkbox"></td>
                         <td class="fileName">{{ item }}</td>
                         <td><input type="text" name="destination"></td>
@@ -445,6 +480,9 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h2>Ftp 命令 文件数<span id="fileNumber"></span></h2>
+                </div>
+                <div>
+                    <input type="checkbox" id="ftpFolderCreate" value="">创建目录
                 </div>
                 <div class="modal-body">
                     <textarea class="form-control" id="commandForFtp" rows="20" spellcheck="false" wrap="off"></textarea>

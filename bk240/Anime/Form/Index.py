@@ -46,7 +46,7 @@ class Index(forms.Form):
         for file in fileList:
             found = True
             for word in words:
-                if word not in file.decode('utf-8'):
+                if word.lower() not in file.decode('utf-8').lower():
                     found = False
                     break
             if found:
