@@ -50,7 +50,8 @@
             var aid = this.id.substr('selectAid'.length);
             for (var i = 0; i < list.length; i++){
                 if ($(".checkbox", list[i].parentNode.parentNode)[0].checked){
-                    list[i].value = $(".mainTitle", $(this)[0].parentNode.parentNode)[0].textContent;
+                    var dest = $(".mainTitle", $(this)[0].parentNode.parentNode)[0].textContent;
+                    list[i].value = dest.replace('/', '／').replace('?', '？').replace('"', '“')
                     var zh = $(".zhTitle", $(this)[0].parentNode.parentNode)[0].value;
                     if (zh.length > 0)
                         list[i].value += '_' + zh;
